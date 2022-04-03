@@ -87,13 +87,9 @@ procedure Multicaster.Main is
             Message : constant Message_Type := Message_Type'Input (Channel);
 
          begin
-            --  Get the address of the sender
-
             Address := Get_Address (Channel);
+            Ada.Text_IO.Put_Line (To_String (Message.Source) & ":" & Message.Counter'Img & ",size=>" & Integer'(Message'Size / 8)'Img);
 
-            --  Send same message back to client Ping
-
-            -- Message_Type'Output (Channel, Message);
          end;
       end loop;
       Close_Socket (Socket);
@@ -157,8 +153,6 @@ procedure Multicaster.Main is
 
       Channel := Stream (Socket, Address);
 
-      --  Send message to server Pong
-      -- Message : constant Message_Type := Message_Type'Input (Channel);
 
       --  Receive and print message from server Pong
 
@@ -166,14 +160,6 @@ procedure Multicaster.Main is
          Message.Counter := Message.Counter + 1;
          Message.Time    := Ada.Calendar.Clock;
          Message_Type'Output (Channel, Message);
-
-         declare
-            Recieved_Message : constant Message_Type := Message_Type'Input (Channel);
-
-         begin
-            Address := Get_Address (Channel);
-            Ada.Text_IO.Put_Line (To_String (Recieved_Message.Source) & ":" & Message.Counter'Img & ",size=>" & Integer'(Recieved_Message'Size / 8)'Img);
-         end;
       end loop;
       Close_Socket (Socket);
 
