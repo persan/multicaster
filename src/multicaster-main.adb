@@ -93,7 +93,7 @@ procedure Multicaster.Main is
 
             --  Send same message back to client Ping
 
-            Message_Type'Output (Channel, Message);
+            -- Message_Type'Output (Channel, Message);
          end;
       end loop;
       Close_Socket (Socket);
@@ -114,10 +114,10 @@ procedure Multicaster.Main is
       Address  : Sock_Addr_Type;
       Socket   : Socket_Type;
       Channel  : Stream_Access;
-      Message  : Message_Type :=  Message_Type'(Ballast_Size => 40000,
+      Message  : Message_Type :=  Message_Type'(Ballast_Size => Configuration.Ballast_Size.Get,
                                                 Counter      => 0,
                                                 Time         => Ada.Calendar.Clock,
-                                                Source       => To_Bounded_String (GNAT.Sockets.Host_Name),
+                                                Source       => To_Bounded_String (Configuration.Name.Get.all),
                                                 Ballast      => (others => '-'));
    begin
       accept Start;

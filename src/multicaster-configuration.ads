@@ -39,8 +39,8 @@ package Multicaster.Configuration is
 
    package Name is new Parse_Option
      (Parser      => Parser,
-      Short       => "-g",
-      Long        => "--group",
+      Short       => "-n",
+      Long        => "--name",
       Arg_Type    => GNAT.Strings.String_Access,
       Help        => "What name to use. Default is """ & Default_Name.all & """.",
       Default_Val => Default_Name);
@@ -54,7 +54,17 @@ package Multicaster.Configuration is
       Short       => "-t",
       Long        => "--time",
       Arg_Type    => Duration,
-      Help        => "How long to execute. Default is" & Default_Exec_Time'img & ".",
+      Help        => "How long to execute. Default is" & Default_Exec_Time'Img & ".",
       Default_Val => Default_Exec_Time);
+
+   Default_Ballast_Size : Natural := 40_000;
+
+   package Ballast_Size is new Parse_Option
+     (Parser      => Parser,
+      Short       => "-s",
+      Long        => "--size",
+      Arg_Type    => Natural,
+      Help        => "Size of ballast in message. Default is" & Default_Ballast_Size'Img & ".",
+      Default_Val => Default_Ballast_Size);
 
 end Multicaster.Configuration;
