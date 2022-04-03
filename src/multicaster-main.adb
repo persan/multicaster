@@ -113,9 +113,9 @@ procedure Multicaster.Main is
       Message  : aliased Message_Type :=  Message_Type'(Counter      => 0,
                                                         Time         => Ada.Calendar.Clock,
                                                         Source       => To_Bounded_String (Configuration.Name.Get.all));
-      Buffer   : aliased Ada.Streams.Stream_Element_Array (1 .. Ballast_Size.Get) with
-        Import => True,
-        Address => Message'Address;
+      Buffer   : aliased Ada.Streams.Stream_Element_Array (1 .. Ballast_Size.Get);
+      for Buffer'Address use Message'Address;
+
       Last     : Ada.Streams.Stream_Element_Offset;
 
    begin
