@@ -2,7 +2,7 @@
 with GNATCOLL.Opt_Parse;    use GNATCOLL.Opt_Parse;
 with GNAT.Strings;
 with GNAT.Sockets;
-
+with Ada.Streams;
 package Multicaster.Configuration is
    Parser : Argument_Parser := Create_Argument_Parser
      (Help => "Help string for the parser");
@@ -13,6 +13,8 @@ package Multicaster.Configuration is
    function Convert (Item : String ) return  Duration is
      (Duration'Value (Item));
 
+   function Convert (Item : String ) return  Ada.Streams.Stream_Element_Offset is
+     (Ada.Streams.Stream_Element_Offset'Value (Item));
    --  -------------------------------------------------------------------------
 
    package Quiet is new Parse_Flag
@@ -57,13 +59,13 @@ package Multicaster.Configuration is
       Help        => "How long to execute. Default is" & Default_Exec_Time'Img & ".",
       Default_Val => Default_Exec_Time);
 
-   Default_Ballast_Size : Natural := 40_000;
+   Default_Ballast_Size : Ada.Streams.Stream_Element_Offset := 40_000;
 
    package Ballast_Size is new Parse_Option
      (Parser      => Parser,
       Short       => "-s",
       Long        => "--size",
-      Arg_Type    => Natural,
+      Arg_Type    => Ada.Streams.Stream_Element_Offset,
       Help        => "Size of ballast in message. Default is" & Default_Ballast_Size'Img & ".",
       Default_Val => Default_Ballast_Size);
 

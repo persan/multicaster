@@ -1,3 +1,4 @@
+with Ada.Streams;
 with GNAT.Sockets; use GNAT.Sockets;
 
 with Ada.Text_IO;
@@ -5,20 +6,21 @@ with Ada.Exceptions; use Ada.Exceptions;
 with GNAT.Traceback.Symbolic;
 with GNAT.Exception_Traces;
 with Multicaster.Configuration;
-
 procedure Multicaster.Main is
    use Multicaster.Configuration;
+   use Ada.Streams;
    use Strings_256;
-   Continue : Boolean := True;
-   task Pong is
+
+   Continue : Boolean := True with Warnings => Off;
+
+   task type Pong_Type is
       entry Start;
       entry Stop;
-   end Pong;
+   end Pong_Type;
 
-   task body Pong is
+   task body Pong_Type is
       Address  : Sock_Addr_Type;
       Socket   : Socket_Type;
-      Channel  : Stream_Access;
 
    begin
       accept Start;
@@ -78,18 +80,17 @@ procedure Multicaster.Main is
       Address.Addr := Inet_Addr (Group.Get.all);
       Address.Port := 55506;
 
-      Channel := Stream (Socket, Address);
 
       --  Receive and print message from client Ping
 
       while Continue loop
          declare
-            Message : constant Message_Type := Message_Type'Input (Channel);
-
+            Buffer  : aliased Ada.Streams.Stream_Element_Array (1 .. 16#1_0000#); -- Max UDP Packet size
+            Message : Message_Type with Import => True , Address => Buffer'Address;
+            Last    : Ada.Streams.Stream_Element_Offset;
          begin
-            Address := Get_Address (Channel);
-            Ada.Text_IO.Put_Line (To_String (Message.Source) & ":" & Message.Counter'Img & ",size=>" & Integer'(Message'Size / 8)'Img);
-
+            GNAT.Sockets.Receive_Socket (Socket => Socket, Item => Buffer , Last => Last);
+            Ada.Text_IO.Put_Line (To_String (Message.Source) & ":" & Message.Counter'Img & ",size=>" & Last'Img);
          end;
       end loop;
       Close_Socket (Socket);
@@ -99,22 +100,24 @@ procedure Multicaster.Main is
    exception when E : others =>
          Ada.Text_IO.Put_Line
            (Exception_Name (E) & ": " & Exception_Message (E));
-   end Pong;
+   end Pong_Type;
 
-   task Ping is
+   task type Ping_Type is
       entry Start;
       entry Stop;
-   end Ping;
+   end Ping_Type;
 
-   task body Ping is
+   task body Ping_Type is
       Address  : Sock_Addr_Type;
       Socket   : Socket_Type;
-      Channel  : Stream_Access;
-      Message  : Message_Type :=  Message_Type'(Ballast_Size => Configuration.Ballast_Size.Get,
-                                                Counter      => 0,
-                                                Time         => Ada.Calendar.Clock,
-                                                Source       => To_Bounded_String (Configuration.Name.Get.all),
-                                                Ballast      => (others => '-'));
+      Message  : aliased Message_Type :=  Message_Type'(Counter      => 0,
+                                                        Time         => Ada.Calendar.Clock,
+                                                        Source       => To_Bounded_String (Configuration.Name.Get.all));
+      Buffer   : aliased Ada.Streams.Stream_Element_Array (1 .. Ballast_Size.get) with
+        Import => True,
+        Address => Message'Address;
+      Last     : Ada.Streams.Stream_Element_Offset;
+
    begin
       accept Start;
 
@@ -151,15 +154,15 @@ procedure Multicaster.Main is
       Address.Addr := Inet_Addr (Group.Get.all);
       Address.Port := 55505;
 
-      Channel := Stream (Socket, Address);
 
 
       --  Receive and print message from server Pong
+      Ada.Text_IO.Put ("-");
 
       while Continue loop
          Message.Counter := Message.Counter + 1;
          Message.Time    := Ada.Calendar.Clock;
-         Message_Type'Output (Channel, Message);
+         Send_Socket (Socket, Buffer, LAst, Address);
       end loop;
       Close_Socket (Socket);
 
@@ -168,17 +171,24 @@ procedure Multicaster.Main is
    exception when E : others =>
          Ada.Text_IO.Put_Line
            (Exception_Name (E) & ": " & Exception_Message (E));
-   end Ping;
+   end Ping_Type;
 
 begin
+
    if Multicaster.Configuration.Parser.Parse then
       GNAT.Exception_Traces.Trace_On (GNAT.Exception_Traces.Every_Raise);
       GNAT.Exception_Traces.Set_Trace_Decorator (GNAT.Traceback.Symbolic.Symbolic_Traceback_No_Hex'Access);
-      Ping.Start;
-      Pong.Start;
-      delay Configuration.Exec_Time.Get;
-      Continue := False;
-      Ping.Stop;
-      Pong.Stop;
+      declare
+         Ping : Ping_Type;
+         Pong : Pong_Type;
+      begin
+         Ping.Start;
+         Pong.Start;
+         delay Configuration.Exec_Time.Get;
+         Continue := False;
+         Ping.Stop;
+         Pong.Stop;
+
+      end;
    end if;
 end Multicaster.Main;
