@@ -8,4 +8,6 @@ package Multicaster is
       Time    : Ada.Calendar.Time;
       Source  : Strings_256.Bounded_String;
    end record;
+   for Message_Type'Alignment use  1;
+
 end Multicaster;
