@@ -1,1 +1,15 @@
 multicaster-pi
+multicaster
+b__*
+messages.txt
+*-loc.xml
+*.stderr
+*.stdout
+*.o
+*.ali
+*.ci
+*.bexch
+*.cswi
+.clang-format
+compile_commands.json
+*.cgpr
