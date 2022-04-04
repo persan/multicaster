@@ -13,6 +13,9 @@ package Multicaster.Configuration is
    function Convert (Item : String ) return  Duration is
      (Duration'Value (Item));
 
+   function Convert (Item : String ) return  GNAT.Sockets.Port_Type is
+     (GNAT.Sockets.Port_Type'Value (Item));
+
    function Convert (Item : String ) return  Ada.Streams.Stream_Element_Offset is
      (Ada.Streams.Stream_Element_Offset'Value (Item));
    --  -------------------------------------------------------------------------
@@ -49,15 +52,29 @@ package Multicaster.Configuration is
 
    --  -------------------------------------------------------------------------
 
-   Default_Exec_Time : Duration := 5.0;
+   Default_Count : Natural := 1000;
 
-   package Exec_Time is new Parse_Option
+   package Count is new Parse_Option
+     (Parser      => Parser,
+      Short       => "-c",
+      Long        => "--count",
+      Arg_Type    => Natural,
+      Help        => "How many samples to send. Default is" & Default_Count'Img & ".",
+      Default_Val => Default_Count);
+
+   --  -------------------------------------------------------------------------
+
+   Default_Delay_Time : Duration := 0.001;
+
+   package Delay_Time is new Parse_Option
      (Parser      => Parser,
       Short       => "-t",
       Long        => "--time",
       Arg_Type    => Duration,
-      Help        => "How long to execute. Default is" & Default_Exec_Time'Img & ".",
-      Default_Val => Default_Exec_Time);
+      Help        => "How Howe long to wait between each sample. Default is" & Default_Delay_Time'Img & ".",
+      Default_Val => Default_Delay_Time);
+
+   --  -------------------------------------------------------------------------
 
    Default_Ballast_Size : Ada.Streams.Stream_Element_Offset := 40_000;
 
@@ -68,5 +85,21 @@ package Multicaster.Configuration is
       Arg_Type    => Ada.Streams.Stream_Element_Offset,
       Help        => "Size of ballast in message. Default is" & Default_Ballast_Size'Img & ".",
       Default_Val => Default_Ballast_Size);
+
+   Default_Port : GNAT.Sockets.Port_Type := 55506;
+
+   package Port is new Parse_Option
+     (Parser      => Parser,
+      Short       => "-p",
+      Long        => "--Port",
+      Arg_Type    => GNAT.Sockets.Port_Type,
+      Help        => "Port to use. Default is" & Default_Port'Img & ".",
+      Default_Val => Default_Port);
+
+
+   package Trace is new Parse_Flag
+     (Parser      => Parser,
+      Long        => "--trace",
+      Help        => "Enable Exception_Traces.");
 
 end Multicaster.Configuration;

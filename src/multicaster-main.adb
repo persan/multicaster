@@ -9,7 +9,11 @@ with Multicaster.Configuration;
 procedure Multicaster.Main is
    use Multicaster.Configuration;
    use Ada.Streams;
-   use Strings_256;
+   use Strings_64;
+   function Getpid return Integer with
+     Convention => C,
+     Import => True,
+     Link_Name => "getpid";
 
    Continue : Boolean := True with Warnings => Off;
 
@@ -60,7 +64,7 @@ procedure Multicaster.Main is
       --  to a given socket address.
 
       Address.Addr := Any_Inet_Addr;
-      Address.Port := 55505;
+      Address.Port := Configuration.Port.get;
 
       Bind_Socket (Socket, Address);
 
@@ -77,19 +81,15 @@ procedure Multicaster.Main is
       --  If this socket is intended to send messages, provide the
       --  receiver socket address.
 
-      Address.Addr := Inet_Addr (Group.Get.all);
-      Address.Port := 55506;
 
-
-      --  Receive and print message from client Ping
-
-      while Continue loop
+      loop
          declare
             Buffer  : aliased Ada.Streams.Stream_Element_Array (1 .. 16#1_0000#); -- Max UDP Packet size
             Message : Message_Type with Import => True , Address => Buffer'Address;
             Last    : Ada.Streams.Stream_Element_Offset;
          begin
             GNAT.Sockets.Receive_Socket (Socket => Socket, Item => Buffer , Last => Last);
+            exit when Message.Counter = 0;
             Ada.Text_IO.Put_Line (To_String (Message.Source) & ":" & Message.Counter'Img & ",size=>" & Last'Img);
          end;
       end loop;
@@ -112,12 +112,11 @@ procedure Multicaster.Main is
       Socket   : Socket_Type;
       Message  : aliased Message_Type :=  Message_Type'(Counter      => 0,
                                                         Time         => Ada.Calendar.Clock,
-                                                        Source       => To_Bounded_String (Configuration.Name.Get.all));
+                                                        Source       => To_Bounded_String (Configuration.Name.Get.all) & ":" & Getpid'Img);
       Buffer   : aliased Ada.Streams.Stream_Element_Array (1 .. Ballast_Size.Get);
       for Buffer'Address use Message'Address;
 
       Last     : Ada.Streams.Stream_Element_Offset;
-
    begin
       accept Start;
 
@@ -142,7 +141,7 @@ procedure Multicaster.Main is
          (Multicast_Loop, True));
 
       Address.Addr := Any_Inet_Addr;
-      Address.Port := 55506;
+      Address.Port := Any_Port;
 
       Bind_Socket (Socket, Address);
 
@@ -152,18 +151,24 @@ procedure Multicaster.Main is
          (Add_Membership, Inet_Addr (Group.Get.all), Any_Inet_Addr));
 
       Address.Addr := Inet_Addr (Group.Get.all);
-      Address.Port := 55505;
+      Address.Port := Configuration.Port.get;
 
 
 
-      --  Receive and print message from server Pong
-      Ada.Text_IO.Put ("-");
-
-      while Continue loop
-         Message.Counter := Message.Counter + 1;
+      for I in 1 .. Configuration.Count.Get loop
+         Message.Counter := I;
          Message.Time    := Ada.Calendar.Clock;
          Send_Socket (Socket, Buffer, LAst, Address);
+         delay Configuration.Delay_Time.Get;
       end loop;
+
+      for I in 1 .. 10 loop
+         Message.Counter := 0;
+         Message.Time    := Ada.Calendar.Clock;
+         Send_Socket (Socket, Buffer, LAst, Address);
+         delay 0.01;
+      end loop;
+
       Close_Socket (Socket);
 
       accept Stop;
@@ -175,20 +180,21 @@ procedure Multicaster.Main is
 
 begin
 
-   if Multicaster.Configuration.Parser.Parse then
-      GNAT.Exception_Traces.Trace_On (GNAT.Exception_Traces.Every_Raise);
-      GNAT.Exception_Traces.Set_Trace_Decorator (GNAT.Traceback.Symbolic.Symbolic_Traceback_No_Hex'Access);
+   if Configuration.Parser.Parse then
+      if Configuration.Trace.Get then
+         GNAT.Exception_Traces.Trace_On (GNAT.Exception_Traces.Every_Raise);
+         GNAT.Exception_Traces.Set_Trace_Decorator (GNAT.Traceback.Symbolic.Symbolic_Traceback_No_Hex'Access);
+      end if;
       declare
          Ping : Ping_Type;
          Pong : Pong_Type;
       begin
-         Ping.Start;
          Pong.Start;
-         delay Configuration.Exec_Time.Get;
-         Continue := False;
+         delay 0.0;
+         Ping.Start;
+
          Ping.Stop;
          Pong.Stop;
-
       end;
    end if;
 end Multicaster.Main;
