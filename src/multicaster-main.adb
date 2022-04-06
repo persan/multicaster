@@ -23,9 +23,14 @@ procedure Multicaster.Main is
    end Pong_Type;
 
    task body Pong_Type is
-      Address  : Sock_Addr_Type;
-      Socket   : Socket_Type;
-
+      Address          : Sock_Addr_Type;
+      Socket           : Socket_Type;
+      Reception_Buffer : Message_Array (1 .. (if Configuration.Program_Count.Get = 0
+                                        then
+                                           Configuration.Default_Program_Count
+                                        else
+                                           Configuration.Program_Count.Get ) * Configuration.Count.Get);
+      Cursor           : Natural := Reception_Buffer'First;
    begin
       accept Start;
       --  Part of the multicast example
@@ -64,7 +69,7 @@ procedure Multicaster.Main is
       --  to a given socket address.
 
       Address.Addr := Any_Inet_Addr;
-      Address.Port := Configuration.Port.get;
+      Address.Port := Configuration.Port.Get;
 
       Bind_Socket (Socket, Address);
 
@@ -89,8 +94,12 @@ procedure Multicaster.Main is
             Last    : Ada.Streams.Stream_Element_Offset;
          begin
             GNAT.Sockets.Receive_Socket (Socket => Socket, Item => Buffer , Last => Last);
-            exit when Message.Counter = 0;
-            Ada.Text_IO.Put_Line (To_String (Message.Source) & ":" & Message.Counter'Img & ",size=>" & Last'Img);
+            exit when Message.Counter = 0 or Cursor >= Reception_Buffer'Last;
+            Reception_Buffer (Cursor) := Message;
+            Cursor := Cursor + 1;
+            if not Configuration.Quiet.Get then
+               Ada.Text_IO.Put_Line (To_String (Message.Source) & ":" & Message.Counter'Img & ",size=>" & Last'Img);
+            end if;
          end;
       end loop;
       Close_Socket (Socket);
@@ -151,7 +160,7 @@ procedure Multicaster.Main is
          (Add_Membership, Inet_Addr (Group.Get.all), Any_Inet_Addr));
 
       Address.Addr := Inet_Addr (Group.Get.all);
-      Address.Port := Configuration.Port.get;
+      Address.Port := Configuration.Port.Get;
 
 
 

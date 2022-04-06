@@ -62,6 +62,15 @@ package Multicaster.Configuration is
       Help        => "How many samples to send. Default is" & Default_Count'Img & ".",
       Default_Val => Default_Count);
 
+   Default_Program_Count : Natural := 10;
+
+   package Program_Count is new Parse_Option
+     (Parser      => Parser,
+      Long        => "--program-count",
+      Arg_Type    => Natural,
+      Help        => "How many programms to allocate reception buffers fo. Default is 10.",
+      Default_Val => 0);
+
    --  -------------------------------------------------------------------------
 
    Default_Delay_Time : Duration := 0.001;

@@ -9,5 +9,5 @@ package Multicaster is
       Source  : Strings_64.Bounded_String;
    end record;
    for Message_Type'Alignment use 1;
-
+   type Message_Array is array (Natural range <>) of Message_Type;
 end Multicaster;
