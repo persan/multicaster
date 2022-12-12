@@ -6,23 +6,13 @@ with Ada.Exceptions; use Ada.Exceptions;
 with GNAT.Traceback.Symbolic;
 with GNAT.Exception_Traces;
 with Multicaster.Configuration;
-procedure Multicaster.Main is
+with GNAT.Calendar.Time_IO;
+procedure Multicaster.sub is
    use Multicaster.Configuration;
    use Ada.Streams;
-   use Strings_64;
-   function Getpid return Integer with
-     Convention => C,
-     Import => True,
-     Link_Name => "getpid";
-
-   Continue : Boolean := True with Warnings => Off;
-
-   task type Pong_Type is
-      entry Start;
-      entry Stop;
-   end Pong_Type;
-
-   task body Pong_Type is
+   use Strings_128;
+   use Ada.Calendar;
+procedure Pong is
       Address          : Sock_Addr_Type;
       Socket           : Socket_Type;
       Reception_Buffer : Message_Array (1 .. (if Configuration.Program_Count.Get = 0
@@ -32,7 +22,6 @@ procedure Multicaster.Main is
                                            Configuration.Program_Count.Get ) * Configuration.Count.Get);
       Cursor           : Natural := Reception_Buffer'First;
    begin
-      accept Start;
       --  Part of the multicast example
 
       --  Create a datagram socket to send connectionless, unreliable
@@ -97,95 +86,18 @@ procedure Multicaster.Main is
             exit when Message.Counter = 0 or Cursor >= Reception_Buffer'Last;
             Reception_Buffer (Cursor) := Message;
             Cursor := Cursor + 1;
+
             if not Configuration.Quiet.Get then
-               Ada.Text_IO.Put_Line (To_String (Message.Source) & ":" & Message.Counter'Img & ",size=>" & Last'Img);
+               Ada.Text_IO.Put_Line ( Message.Counter'Image &"," & To_String (Message.Source) & GNAT.Calendar.Time_IO.Image (Message.Time, ", %T.%i, ") & Duration'(Ada.Calendar.Clock - Message.Time)'Image);
             end if;
          end;
       end loop;
       Close_Socket (Socket);
 
-      accept Stop;
 
-   exception when E : others =>
-         Ada.Text_IO.Put_Line
-           (Exception_Name (E) & ": " & Exception_Message (E));
-   end Pong_Type;
-
-   task type Ping_Type is
-      entry Start;
-      entry Stop;
-   end Ping_Type;
-
-   task body Ping_Type is
-      Address  : Sock_Addr_Type;
-      Socket   : Socket_Type;
-      Message  : aliased Message_Type :=  Message_Type'(Counter      => 0,
-                                                        Time         => Ada.Calendar.Clock,
-                                                        Source       => To_Bounded_String (Configuration.Name.Get.all) & ":" & Getpid'Img);
-      Buffer   : aliased Ada.Streams.Stream_Element_Array (1 .. Ballast_Size.Get);
-      for Buffer'Address use Message'Address;
-
-      Last     : Ada.Streams.Stream_Element_Offset;
-   begin
-      accept Start;
+   end Pong;
 
 
-      --  Part of multicast example. Code similar to Pong's one
-
-      Create_Socket (Socket, Family_Inet, Socket_Datagram);
-
-      Set_Socket_Option
-        (Socket,
-         Socket_Level,
-         (Reuse_Address, True));
-
-      Set_Socket_Option
-        (Socket,
-         IP_Protocol_For_IP_Level,
-         (Multicast_TTL, 1));
-
-      Set_Socket_Option
-        (Socket,
-         IP_Protocol_For_IP_Level,
-         (Multicast_Loop, True));
-
-      Address.Addr := Any_Inet_Addr;
-      Address.Port := Any_Port;
-
-      Bind_Socket (Socket, Address);
-
-      Set_Socket_Option
-        (Socket,
-         IP_Protocol_For_IP_Level,
-         (Add_Membership, Inet_Addr (Group.Get.all), Any_Inet_Addr));
-
-      Address.Addr := Inet_Addr (Group.Get.all);
-      Address.Port := Configuration.Port.Get;
-
-
-
-      for I in 1 .. Configuration.Count.Get loop
-         Message.Counter := I;
-         Message.Time    := Ada.Calendar.Clock;
-         Send_Socket (Socket, Buffer, LAst, Address);
-         delay Configuration.Delay_Time.Get;
-      end loop;
-
-      for I in 1 .. 10 loop
-         Message.Counter := 0;
-         Message.Time    := Ada.Calendar.Clock;
-         Send_Socket (Socket, Buffer, LAst, Address);
-         delay 0.01;
-      end loop;
-
-      Close_Socket (Socket);
-
-      accept Stop;
-
-   exception when E : others =>
-         Ada.Text_IO.Put_Line
-           (Exception_Name (E) & ": " & Exception_Message (E));
-   end Ping_Type;
 
 begin
 
@@ -194,16 +106,9 @@ begin
          GNAT.Exception_Traces.Trace_On (GNAT.Exception_Traces.Every_Raise);
          GNAT.Exception_Traces.Set_Trace_Decorator (GNAT.Traceback.Symbolic.Symbolic_Traceback_No_Hex'Access);
       end if;
-      declare
-         Ping : Ping_Type;
-         Pong : Pong_Type;
-      begin
-         Pong.Start;
-         delay 0.0;
-         Ping.Start;
-
-         Ping.Stop;
-         Pong.Stop;
-      end;
+         Pong;
    end if;
-end Multicaster.Main;
+   exception when E : others =>
+         Ada.Text_IO.Put_Line
+           (Exception_Name (E) & ": " & Exception_Message (E));
+end Multicaster.sub;
